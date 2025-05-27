@@ -9,7 +9,7 @@ export default function HomeScreen() {
         Track your applications here and visualize the journey
       </Text>
 
-      <Link href="/add-job" asChild>
+      <Link href="/add-application" asChild>
         <Button title="View Sankey Map" />
       </Link>
     </View>
