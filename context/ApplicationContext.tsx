@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
 import {
   Application,
@@ -76,7 +77,6 @@ export const ApplicationProvider = ({ children }: ApplicationProviderProps) => {
       initialStageName?: string,
       initialStageNotes?: string
     ) => {
-      // console.log("Inside add application");
       const newJob: Application = {
         id: uuidv4(),
         companyName,
@@ -84,20 +84,14 @@ export const ApplicationProvider = ({ children }: ApplicationProviderProps) => {
         applicationDate,
         stages: [],
       };
-      // console.log("New Job:", newJob);
 
       const defaultInitialStage: Stage = {
         name: PREDEFINED_STAGES[0],
         date: applicationDate,
         notes: "Initial application submission",
       };
-      // console.log("Default Initial Stage", defaultInitialStage);
-
-      // console.log("Before pushing default stages");
 
       newJob.stages.push(defaultInitialStage);
-
-      // console.log("After pushing default stages");
 
       if (initialStageName && initialStageName !== defaultInitialStage.name) {
         newJob.stages.push({

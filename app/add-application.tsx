@@ -106,10 +106,6 @@ const AddApplicationScreen = () => {
   };
 
   const handleSaveJob = async () => {
-    // console.log("Inside handleSaveJob");
-    // console.log("Comnapny Name: ", companyName);
-    // console.log("Job Title: ", jobTitle);
-    // console.log("Application Date: ", applicationDate);
     if (!companyName || !jobTitle || !applicationDate) {
       Alert.alert(
         "Missing Info",
@@ -117,7 +113,6 @@ const AddApplicationScreen = () => {
       );
       return;
     }
-    // console.log("Before if statement");
     if (currentApplication) {
       const updatedApplicationDetails: Application = {
         ...currentApplication,
@@ -125,12 +120,10 @@ const AddApplicationScreen = () => {
         jobTitle,
         applicationDate,
       };
-      //   console.log("before await");
       await updateApplication(updatedApplicationDetails);
-      //   console.log("after await");
+        console.log("after await");
       Alert.alert("Success", "Application Details updated");
     } else {
-      //   console.log("inside else statement");
       await addApplication(companyName, jobTitle, applicationDate);
       Alert.alert("Success", "New Application added");
       router.back();
