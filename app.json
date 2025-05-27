@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "rejection-mapper",
+    "name": "Rejection Mapper",
     "slug": "rejection-mapper",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -24,6 +24,8 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": ["expo-router"],
+    "scheme": "rejectionmapper"
   }
 }
