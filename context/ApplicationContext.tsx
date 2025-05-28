@@ -59,6 +59,8 @@ export const ApplicationProvider = ({ children }: ApplicationProviderProps) => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const data = await loadApplications();
+    setApplications(data);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
