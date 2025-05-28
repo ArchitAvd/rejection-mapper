@@ -59,7 +59,9 @@ export const ApplicationProvider = ({ children }: ApplicationProviderProps) => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const data = await loadApplications();
-    setApplications(data);
+    if (JSON.stringify(data) !== JSON.stringify(applications)) {
+      setApplications(data);
+    }
     setLoading(false);
   }, []);
 
@@ -67,9 +69,9 @@ export const ApplicationProvider = ({ children }: ApplicationProviderProps) => {
     fetchData();
   }, [fetchData, refreshKey]);
 
-  const forceRefresh = () => {
+  const forceRefresh = useCallback(() => {
     setRefreshKey((prevKey) => prevKey + 1);
-  };
+  }, []);
 
   const addApplication = useCallback(
     async (

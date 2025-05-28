@@ -1,19 +1,30 @@
-// app/index.tsx
-import React, { useEffect } from 'react';
-import { View, Text, Button, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { Link, useRouter } from 'expo-router';
-import { useApplications } from '../context/ApplicationContext';
-import { Application } from '../types';
+import React, { useCallback, useState } from "react";
+import {
+  View,
+  Text,
+  Button,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import { Link, useFocusEffect, useRouter } from "expo-router";
+import { useApplications } from "../context/ApplicationContext";
+import { Application } from "../types";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { applications, loading, deleteApplication, forceRefresh } = useApplications();
+  const { applications, loading, deleteApplication, forceRefresh } =
+    useApplications();
+  const [refreshing, setRefreshing] = useState(false);
 
-  const sortedApplications = [...applications].sort((a, b) => {
-    const latestStageA = a.stages.length > 0 ? a.stages[a.stages.length - 1].date : a.applicationDate;
-    const latestStageB = b.stages.length > 0 ? b.stages[b.stages.length - 1].date : b.applicationDate;
-    return new Date(latestStageB).getTime() - new Date(latestStageA).getTime(); 
-  });
+  useFocusEffect(
+    useCallback(() => {
+      forceRefresh();
+      return () => {};
+    }, [forceRefresh])
+  );
 
   const handleDelete = (id: string) => {
     Alert.alert(
@@ -22,7 +33,7 @@ export default function HomeScreen() {
       [
         {
           text: "Cancel",
-          style: "cancel"
+          style: "cancel",
         },
         {
           text: "Delete",
@@ -30,161 +41,187 @@ export default function HomeScreen() {
             await deleteApplication(id);
             Alert.alert("Deleted", "Job application deleted successfully.");
           },
-          style: "destructive"
-        }
-      ]
+          style: "destructive",
+        },
+      ],
+      { cancelable: true }
     );
   };
 
-  const renderItem = ({ item }: { item: Application }) => {
-    const latestStage = item.stages.length > 0 ? item.stages[item.stages.length - 1] : undefined;
-    const currentStatus = latestStage ? latestStage.name : "N/A";
-    const statusDate = latestStage ? latestStage.date : item.applicationDate;
-
-    return (
-      <TouchableOpacity
-        style={styles.item}
-        onPress={() => router.push({ pathname: "/add-application", params: { id: item.id } })}
-      >
-        <View style={styles.info}>
-          <Text style={styles.company}>{item.companyName}</Text>
-          <Text style={styles.title}>{item.jobTitle}</Text>
-          <Text style={styles.status}>Status: {currentStatus} ({statusDate})</Text>
-        </View>
-        <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteButton}>
-          <Text style={styles.deleteButtonText}>X</Text>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    );
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>Loading applications...</Text>
+  const renderItem = ({ item }: { item: Application }) => (
+    <TouchableOpacity
+      style={styles.item}
+      onPress={() =>
+        router.push({ pathname: "/add-application", params: { id: item.id } })
+      }
+      onLongPress={() => handleDelete(item.id)}
+    >
+      <View style={styles.textContainer}>
+        <Text style={styles.companyName}>{item.companyName}</Text>
+        <Text style={styles.title}>{item.jobTitle}</Text>
+        <Text style={styles.applicationDate}>
+          Applied: {item.applicationDate}
+        </Text>
+        {item.stages.length > 0 && (
+          <Text style={styles.currentStage}>
+            Current Stage: {item.stages[item.stages.length - 1]?.name} (
+            {item.stages[item.stages.length - 1]?.date})
+          </Text>
+        )}
       </View>
-    );
-  }
+      <View style={styles.itemButtons}>
+        <Link
+          href={{ pathname: "/add-application", params: { id: item.id } }}
+          asChild
+        >
+          <Button title="Edit" />
+        </Link>
+        <Button
+          title="Delete"
+          onPress={() => handleDelete(item.id)}
+          color="#dc3545"
+        />
+      </View>
+    </TouchableOpacity>
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await forceRefresh();
+    setRefreshing(false);
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Your Applications</Text>
-
-      {sortedApplications.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>No applications logged yet.</Text>
-          <Text style={styles.emptyStateText}>Start by adding one!</Text>
-        </View>
+      {loading ? (
+        <ActivityIndicator size="large" color="#0000ff" />
       ) : (
-        <FlatList
-          data={sortedApplications}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContentContainer}
-        />
+        <>
+          <FlatList
+            data={applications.sort(
+              (a, b) =>
+                new Date(b.applicationDate).getTime() -
+                new Date(a.applicationDate).getTime()
+            )}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <View style={styles.emptyListContainer}>
+                <Text style={styles.emptyListText}>
+                  No applications added yet
+                </Text>
+                <Text style={styles.emptyListSubtext}>
+                  Tap "Add new application" to get started
+                </Text>
+              </View>
+            }
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+          />
+          <View style={styles.buttonContainer}>
+            <Link href="/add-application" asChild>
+              <Button title="Add New Application" />
+            </Link>
+            <Link href="/sankey-diagram" asChild>
+              <Button title="View Sankey Map" />
+            </Link>
+          </View>
+        </>
       )}
-
-      <View style={styles.buttonContainer}>
-        <Link href="/add-application" asChild>
-          <Button title="Add New Job" />
-        </Link>
-        <Link href="/sankey-diagram" asChild>
-          <Button title="View Sankey Map" />
-        </Link>
-      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   container: {
     flex: 1,
     padding: 10,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f8f8f8",
   },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-    color: '#333',
-    paddingTop: 10,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  listContentContainer: {
-    paddingBottom: 20,
+  listContent: {
+    paddingBottom: 80,
   },
   item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 15,
+    marginVertical: 8,
     borderRadius: 8,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
     elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1.5,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  info: {
+  textContainer: {
     flex: 1,
+    marginRight: 10,
   },
-  company: {
+  companyName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    marginBottom: 4,
   },
   title: {
     fontSize: 16,
-    color: '#555',
-    marginTop: 2,
+    color: "#555",
+    marginBottom: 4,
   },
-  status: {
-    fontSize: 14,
-    color: '#777',
+  applicationDate: {
+    fontSize: 12,
+    color: "#888",
+  },
+  currentStage: {
+    fontSize: 13,
+    color: "#007bff",
+    fontWeight: "500",
     marginTop: 5,
-    fontStyle: 'italic',
   },
-  deleteButton: {
-    backgroundColor: '#dc3545',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 15,
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+  itemButtons: {
+    flexDirection: "column",
+    gap: 8,
   },
   buttonContainer: {
-    marginTop: 20,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    padding: 10,
+    flexDirection: "row",
+    justifyContent: "space-around",
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingVertical: 10,
-    backgroundColor: '#f5f5f5',
+    borderTopColor: "#eee",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  emptyListContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 50,
+    padding: 20,
+  },
+  emptyListText: {
+    fontSize: 18,
+    color: "#666",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  emptyListSubtext: {
+    fontSize: 14,
+    color: "#888",
+    textAlign: "center",
   },
 });
