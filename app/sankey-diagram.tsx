@@ -1,0 +1,225 @@
+import {
+  Dimensions,
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Text,
+} from "react-native";
+import { Application } from "../types";
+import { useApplications } from "../context/ApplicationContext";
+import { useEffect, useMemo, useState } from "react";
+import WebView from "react-native-webview";
+
+const { width, height } = Dimensions.get("window");
+
+const transformDataForSankey = (
+  applications: Application[]
+): {
+  nodes: { label: string }[];
+  links: { source: number; target: number; value: number }[];
+} => {
+  const nodeMap = new Map<string, number>();
+  const nodes: { label: string }[] = [];
+  const linkCounts = new Map<string, number>();
+
+  applications.forEach((application) => {
+    const sortedStages = [...application.stages].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    for (let i = 0; i < sortedStages.length - 1; i++) {
+      const sourceStage = sortedStages[i].name;
+      const targetStage = sortedStages[i + 1].name;
+
+      if (!nodeMap.has(sourceStage)) {
+        nodeMap.set(sourceStage, nodes.length);
+        nodes.push({ label: sourceStage });
+      }
+
+      if (!nodeMap.has(targetStage)) {
+        nodeMap.set(targetStage, nodes.length);
+        nodes.push({ label: targetStage });
+      }
+
+      const linkKey = `${sourceStage}->${targetStage}`;
+      linkCounts.set(linkKey, (linkCounts.get(linkKey) || 0) + 1);
+    }
+  });
+
+  const links: { source: number; target: number; value: number }[] = [];
+  linkCounts.forEach((count, linkKey) => {
+    const [sourceName, targetName] = linkKey.split("->");
+    const sourceIndex = nodeMap.get(sourceName);
+    const targetIndex = nodeMap.get(targetName);
+
+    if (sourceIndex !== undefined && targetIndex !== undefined) {
+      links.push({
+        source: sourceIndex,
+        target: targetIndex,
+        value: count,
+      });
+    }
+  });
+
+  return { nodes, links };
+};
+
+const SankeyDiagramScreen = () => {
+  const { applications, loading } = useApplications();
+  const [sankeyHtml, setSankeyHtml] = useState<string | null>(null);
+
+  const sankeyData = useMemo(() => {
+    return transformDataForSankey(applications);
+  }, [applications]);
+
+  useEffect(() => {
+    if (sankeyData.nodes.length === 0) {
+      setSankeyHtml(null);
+      return;
+    }
+
+    const { nodes, links } = sankeyData;
+
+    const plotlyConfig = {
+      data: [
+        {
+          type: "sankey",
+          orientation: "h",
+          node: {
+            pad: 15,
+            thickness: 30,
+            line: {
+              color: "black",
+              width: 0.5,
+            },
+            label: nodes.map((node) => node.label),
+            color: "blue",
+          },
+          link: {
+            source: links.map((link) => link.source),
+            target: links.map((link) => link.target),
+            value: links.map((link) => link.value),
+            color: "rgba(0,0,0,0.2)",
+          },
+        },
+      ],
+      layout: {
+        title: "Application Flow",
+        font: {
+          size: 10,
+        },
+        height: height * 0.9,
+        width: width * 0.95,
+      },
+    };
+
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        <style>
+            body { margin: 0; padding: 0; overflow: hidden; background-color: #f8f8f8; }
+            #graph { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        </style>
+        </head>
+        <body>
+        <div id="graph"></div>
+        <script> const plotlyConfig = ${JSON.stringify(plotlyConfig)};
+        Plotly.newPlot('graph', plotlyCOnfig.data, plotlyConfig.layout, {responsive: true});
+        </script>
+        </body>
+        </html>`;
+
+    setSankeyHtml(htmlContent);
+  }, [sankeyData]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  if (!sankeyHtml) {
+    return (
+      <View style={styles.noDataContainer}>
+        <Text style={styles.noDataText}>
+          No sufficient data to generate Sankey Map
+        </Text>
+        <Text style={styles.noDataSubtext}>
+          Add applications with multiple stages to see the flow
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <WebView
+        originWhitelist={["*"]}
+        source={{ html: sankeyHtml }}
+        style={styles.webView}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        startInLoadingState={true}
+        renderLoading={() => (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#0000ff" />
+          </View>
+        )}
+        scalesPageToFit={true}
+        mixedContentMode="always"
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f8f8f8",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f8f8",
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#f8f8f8",
+  },
+  noDataText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 10,
+    color: "#555",
+  },
+  noDataSubtext: {
+    fontSize: 14,
+    textAlign: "center",
+    color: "#777",
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  loadingOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});
+
+export default SankeyDiagramScreen;
