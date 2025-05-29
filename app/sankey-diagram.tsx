@@ -72,7 +72,7 @@ const SankeyDiagramScreen = () => {
   }, [applications]);
 
   useEffect(() => {
-    if (sankeyData.nodes.length === 0) {
+    if (sankeyData.nodes.length === 0 || sankeyData.links.length === 0) {
       setSankeyHtml(null);
       return;
     }
@@ -126,7 +126,7 @@ const SankeyDiagramScreen = () => {
         <body>
         <div id="graph"></div>
         <script> const plotlyConfig = ${JSON.stringify(plotlyConfig)};
-        Plotly.newPlot('graph', plotlyCOnfig.data, plotlyConfig.layout, {responsive: true});
+        Plotly.newPlot('graph', plotlyConfig.data, plotlyConfig.layout, {responsive: true});
         </script>
         </body>
         </html>`;
