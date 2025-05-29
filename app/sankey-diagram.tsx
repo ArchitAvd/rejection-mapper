@@ -15,39 +15,54 @@ const { width, height } = Dimensions.get("window");
 const transformDataForSankey = (
   applications: Application[]
 ): {
-  nodes: { label: string }[];
+  nodes: { label: string; rawLabel: string; count: number }[]; 
   links: { source: number; target: number; value: number }[];
 } => {
-  const nodeMap = new Map<string, number>();
-  const nodes: { label: string }[] = [];
+  const uniqueStageNames = new Set<string>(); 
   const linkCounts = new Map<string, number>();
+  const stageApplicationCounts = new Map<string, number>();
 
-  applications.forEach((application) => {
-    const sortedStages = [...application.stages].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  applications.forEach(job => {
+    const sortedStages = [...job.stages].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
-    for (let i = 0; i < sortedStages.length - 1; i++) {
-      const sourceStage = sortedStages[i].name;
-      const targetStage = sortedStages[i + 1].name;
 
-      if (!nodeMap.has(sourceStage)) {
-        nodeMap.set(sourceStage, nodes.length);
-        nodes.push({ label: sourceStage });
+    const stagesInThisApplication = new Set<string>();
+
+    for (let i = 0; i < sortedStages.length; i++) {
+      const currentStageName = sortedStages[i].name;
+      uniqueStageNames.add(currentStageName);
+      stagesInThisApplication.add(currentStageName);
+
+      if (i < sortedStages.length - 1) {
+        const nextStageName = sortedStages[i + 1].name;
+        const linkKey = `${currentStageName}->${nextStageName}`;
+        linkCounts.set(linkKey, (linkCounts.get(linkKey) || 0) + 1);
       }
-
-      if (!nodeMap.has(targetStage)) {
-        nodeMap.set(targetStage, nodes.length);
-        nodes.push({ label: targetStage });
-      }
-
-      const linkKey = `${sourceStage}->${targetStage}`;
-      linkCounts.set(linkKey, (linkCounts.get(linkKey) || 0) + 1);
     }
+
+    stagesInThisApplication.forEach(stageName => {
+        stageApplicationCounts.set(stageName, (stageApplicationCounts.get(stageName) || 0) + 1);
+    });
+  });
+
+  const nodes: { label: string; rawLabel: string; count: number }[] = [];
+  const nodeMap = new Map<string, number>();
+  const sortedUniqueStageNames = Array.from(uniqueStageNames).sort();
+
+  sortedUniqueStageNames.forEach((stageName) => {
+    const count = stageApplicationCounts.get(stageName) || 0;
+    nodeMap.set(stageName, nodes.length);
+    nodes.push({
+      label: `${stageName}: ${count}`,
+      rawLabel: stageName, 
+      count: count,
+    });
   });
 
   const links: { source: number; target: number; value: number }[] = [];
   linkCounts.forEach((count, linkKey) => {
-    const [sourceName, targetName] = linkKey.split("->");
+    const [sourceName, targetName] = linkKey.split('->');
     const sourceIndex = nodeMap.get(sourceName);
     const targetIndex = nodeMap.get(targetName);
 
@@ -91,7 +106,7 @@ const SankeyDiagramScreen = () => {
               color: "black",
               width: 0.5,
             },
-            label: nodes.map((node) => node.label),
+            label: nodes.map((node) => `${node.rawLabel}: ${node.count}`),
             color: "blue",
           },
           link: {
