@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useApplications } from "../context/ApplicationContext";
 import { useCallback, useEffect, useState } from "react";
-import { Application } from "../types";
+import { Application, Stage, PREDEFINED_STAGES, CHANNELS } from "../types";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,6 +13,8 @@ import {
   Text,
   Button,
   View,
+  Modal,
+  Pressable,
 } from "react-native";
 import React from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -37,18 +39,27 @@ const AddApplicationScreen = () => {
   const [applicationDate, setApplicationDate] = useState(
     formatDate(new Date())
   );
+  const [channel, setChannel] = useState(CHANNELS[0] || "");
   const [showApplicationDatePicker, setShowApplicationDatePicker] =
     useState(false);
+  const [showChannelModal, setShowChannelModal] = useState(false);
 
   const [newStageName, setNewStageName] = useState("");
   const [newStageDate, setNewStageDate] = useState(formatDate(new Date()));
   const [showNewStageDatePicker, setShowNewStageDatePicker] = useState(false);
   const [newStageNotes, setNewStageNotes] = useState("");
+  const [showStageSelectionModal, setShowStageSelectionModal] = useState(false);
+  const [availableStagesForSelection, setAvailableStagesForSelection] =
+    useState<string[]>([]);
   const [stageSuggestions, setStageSuggestions] = useState<string[]>([]);
 
   const [currentApplication, setCurrentApplication] = useState<
     Application | undefined
   >(undefined);
+
+  useEffect(() => {
+    setAvailableStagesForSelection(getSuggestedStageNames(""));
+  }, [getSuggestedStageNames, applications]);
 
   useEffect(() => {
     if (id && typeof id === "string") {
@@ -58,6 +69,7 @@ const AddApplicationScreen = () => {
         setCompanyName(application.companyName);
         setJobTitle(application.jobTitle);
         setApplicationDate(application.applicationDate);
+        setChannel(application.channel || CHANNELS[0]);
       } else {
         Alert.alert(
           "Application not found",
@@ -69,29 +81,13 @@ const AddApplicationScreen = () => {
       setCurrentApplication(undefined);
       setCompanyName("");
       setJobTitle("");
+      setChannel(CHANNELS[0]);
       setApplicationDate(formatDate(new Date()));
       setNewStageName("");
       setNewStageDate(formatDate(new Date()));
       setNewStageNotes("");
     }
   }, [id, applications, getApplicationById, router]);
-
-  const handleStageNameChange = useCallback(
-    (text: string) => {
-      setNewStageName(text);
-      if (text.length > 0) {
-        setStageSuggestions(getSuggestedStageNames(text));
-      } else {
-        setStageSuggestions([]);
-      }
-    },
-    [getSuggestedStageNames]
-  );
-
-  const selectStageSuggestion = useCallback((suggestion: string) => {
-    setNewStageName(suggestion);
-    setStageSuggestions([]);
-  }, []);
 
   const handleApplicationDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || new Date();
@@ -101,15 +97,15 @@ const AddApplicationScreen = () => {
 
   const handleNewStageDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || new Date();
-    setShowApplicationDatePicker(Platform.OS === "ios");
+    setShowNewStageDatePicker(Platform.OS === "ios");
     setNewStageDate(formatDate(currentDate));
   };
 
   const handleSaveJob = async () => {
-    if (!companyName || !jobTitle || !applicationDate) {
+    if (!companyName || !jobTitle || !applicationDate || !channel) {
       Alert.alert(
         "Missing Info",
-        "Company Name, Job Title and Application Date are required"
+        "Company Name, Job Title, Channel and Application Date are required"
       );
       return;
     }
@@ -119,12 +115,13 @@ const AddApplicationScreen = () => {
         companyName,
         jobTitle,
         applicationDate,
+        channel,
       };
       await updateApplication(updatedApplicationDetails);
-        console.log("after await");
+      console.log("after await");
       Alert.alert("Success", "Application Details updated");
     } else {
-      await addApplication(companyName, jobTitle, applicationDate);
+      await addApplication(companyName, jobTitle, applicationDate, channel);
       Alert.alert("Success", "New Application added");
       router.back();
     }
@@ -150,7 +147,6 @@ const AddApplicationScreen = () => {
     setNewStageName("");
     setNewStageDate(formatDate(new Date()));
     setNewStageNotes("");
-    setStageSuggestions([]);
   };
 
   return (
@@ -172,6 +168,46 @@ const AddApplicationScreen = () => {
           value={jobTitle}
           onChangeText={setJobTitle}
         />
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Channel:</Text>
+          <TouchableOpacity
+            onPress={() => setShowChannelModal(true)}
+            style={styles.datePickerButton}
+          >
+            <Text>{channel || "Select Channel"}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showChannelModal}
+          onRequestClose={() => setShowChannelModal(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowChannelModal(false)}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Channel</Text>
+              {CHANNELS.map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[
+                    styles.modalOption,
+                    channel === opt && styles.modalOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setChannel(opt);
+                    setShowChannelModal(false);
+                  }}
+                >
+                  <Text style={styles.modalOptionText}>{opt}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
         <TouchableOpacity
           onPress={() => setShowApplicationDatePicker(true)}
           style={styles.datePickerButton}
@@ -220,25 +256,49 @@ const AddApplicationScreen = () => {
             )}
             <View style={styles.seperator} />
             <Text style={styles.sectionTitle}>Add new Stage</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Stage Name"
-              value={newStageName}
-              onChangeText={handleStageNameChange}
-            />
-            {stageSuggestions.length > 0 && (
-              <View style={styles.suggestionsContainer}>
-                {stageSuggestions.map((suggestion, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.suggestionItem}
-                    onPress={() => selectStageSuggestion(suggestion)}
-                  >
-                    <Text>{suggestion}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Stage Name:</Text>
+              <TouchableOpacity
+                onPress={() => setShowStageSelectionModal(true)}
+                style={styles.datePickerButton}
+              >
+                <Text>{newStageName || "Select Stage"}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Modal
+              animationType="slide"
+              transparent={true}
+              visible={showStageSelectionModal}
+              onRequestClose={() => setShowStageSelectionModal(false)}
+            >
+              <Pressable
+                style={styles.modalOverlay}
+                onPress={() => setShowStageSelectionModal(false)}
+              >
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>Select Stage</Text>
+                  <ScrollView style={styles.modalOptionsScrollView}>
+                    {availableStagesForSelection.map((stageName) => (
+                      <TouchableOpacity
+                        key={stageName}
+                        style={[
+                          styles.modalOption,
+                          newStageName === stageName &&
+                            styles.modalOptionSelected,
+                        ]}
+                        onPress={() => {
+                          setNewStageName(stageName);
+                          setShowStageSelectionModal(false);
+                        }}
+                      >
+                        <Text style={styles.modalOptionText}>{stageName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </Pressable>
+            </Modal>
             <TouchableOpacity
               onPress={() => setShowNewStageDatePicker(true)}
               style={styles.datePickerButton}
@@ -348,6 +408,51 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 10,
     marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 16,
+    marginBottom: 5,
+    color: "#555",
+    fontWeight: "500",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 20,
+    width: "80%",
+    maxHeight: "70%",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  modalOption: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  modalOptionSelected: {
+    backgroundColor: "#e6f0ff",
+    borderRadius: 5,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  modalOptionsScrollView: { 
+    flexGrow: 1, 
+    maxHeight: '80%',
   },
 });
 

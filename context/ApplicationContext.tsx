@@ -25,6 +25,7 @@ interface ApplicationContextType {
   loading: boolean;
   addApplication: (
     companyName: string,
+    channel: string,
     jobTitle: string,
     initialApplicationDate: string,
     initialStageName?: string,
@@ -76,6 +77,7 @@ export const ApplicationProvider = ({ children }: ApplicationProviderProps) => {
   const addApplication = useCallback(
     async (
       companyName: string,
+      channel: string,
       jobTitle: string,
       applicationDate: string,
       initialStageName?: string,
@@ -84,6 +86,7 @@ export const ApplicationProvider = ({ children }: ApplicationProviderProps) => {
       const newJob: Application = {
         id: uuidv4(),
         companyName,
+        channel,
         jobTitle,
         applicationDate,
         stages: [],
@@ -177,7 +180,7 @@ export const ApplicationProvider = ({ children }: ApplicationProviderProps) => {
       );
 
       if (!currentInput) {
-        return allPossibleStages.slice(0, 5);
+        return allPossibleStages;
       }
 
       const lowerCaseInput = currentInput.toLowerCase();
