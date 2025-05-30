@@ -1,17 +1,17 @@
 import { Stack } from "expo-router";
 import { ApplicationProvider } from "../context/ApplicationContext";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function RootLayout() {
   return (
     <ApplicationProvider>
-      <Stack>
-        <Stack.Screen name="index" options={{ title: "Applications" }} />
-        <Stack.Screen
-          name="add-application"
-          options={{ title: "Add/Edit Application" }}
-        />
-        {/* <Stack.Screen name="sankey-diagram" options={{ title: "Sankey Map" }} /> */}
+      <SafeAreaProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="add-application" />
+        <Stack.Screen name="sankey-diagram" />
       </Stack>
+      </SafeAreaProvider>
     </ApplicationProvider>
   );
 }

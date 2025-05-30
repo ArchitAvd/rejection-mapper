@@ -1,6 +1,6 @@
+import React, { useCallback, useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useApplications } from "../context/ApplicationContext";
-import { useCallback, useEffect, useState } from "react";
 import { Application, Stage, PREDEFINED_STAGES, CHANNELS } from "../types";
 import {
   Alert,
@@ -11,21 +11,70 @@ import {
   TextInput,
   TouchableOpacity,
   Text,
-  Button,
   View,
   Modal,
   Pressable,
+  StatusBar,
+  useColorScheme,
+  Animated,
 } from "react-native";
-import React from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+
+interface AddApplicationScreenProps {}
 
 const formatDate = (date: Date): string => {
   return date.toISOString().split("T")[0];
 };
 
-const AddApplicationScreen = () => {
+const formatDisplayDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+type IconConfig = {
+  lib: React.ComponentType<any>;
+  name: string;
+  color?: string;
+};
+
+const CHANNEL_ICONS: Record<string, string> = {
+  LinkedIn: "💼",
+  "Company Website": "🌐",
+  Indeed: "🔍",
+  Glassdoor: "🏢",
+  Referral: "👥",
+  "Job Fair": "🎪",
+  Recruiter: "📞",
+  Other: "📋",
+};
+
+const STAGE_ICONS: Record<string, string> = {
+  Applied: "📤",
+  "Application Reviewed": "👀",
+  "Phone Screen": "📞",
+  "Technical Interview": "💻",
+  "Behavioral Interview": "💭",
+  "Final Interview": "🎯",
+  "Offer Received": "🎉",
+  "Offer Accepted": "✅",
+  "Offer Declined": "❌",
+  Rejected: "⛔",
+  Ghosted: "👻",
+  Withdrawn: "🚪",
+};
+
+const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const { id } = useLocalSearchParams<{ id?: string }>();
+
   const {
     applications,
     addApplication,
@@ -34,28 +83,59 @@ const AddApplicationScreen = () => {
     getApplicationById,
     getSuggestedStageNames,
   } = useApplications();
-  const [companyName, setCompanyName] = useState(" ");
-  const [jobTitle, setJobTitle] = useState("");
-  const [applicationDate, setApplicationDate] = useState(
+
+  // Form state
+  const [companyName, setCompanyName] = useState<string>("");
+  const [jobTitle, setJobTitle] = useState<string>("");
+  const [applicationDate, setApplicationDate] = useState<string>(
     formatDate(new Date())
   );
-  const [channel, setChannel] = useState(CHANNELS[0] || "");
+  const [channel, setChannel] = useState<string>(CHANNELS[0] || "");
+
+  // Modal states
   const [showApplicationDatePicker, setShowApplicationDatePicker] =
-    useState(false);
-  const [showChannelModal, setShowChannelModal] = useState(false);
+    useState<boolean>(false);
+  const [showChannelModal, setShowChannelModal] = useState<boolean>(false);
 
-  const [newStageName, setNewStageName] = useState("");
-  const [newStageDate, setNewStageDate] = useState(formatDate(new Date()));
-  const [showNewStageDatePicker, setShowNewStageDatePicker] = useState(false);
-  const [newStageNotes, setNewStageNotes] = useState("");
-  const [showStageSelectionModal, setShowStageSelectionModal] = useState(false);
-  const [availableStagesForSelection, setAvailableStagesForSelection] =
-    useState<string[]>([]);
-  const [stageSuggestions, setStageSuggestions] = useState<string[]>([]);
+  // Stage form state
+  const [newStageName, setNewStageName] = useState<string>("");
+  const [newStageDate, setNewStageDate] = useState<string>(
+    formatDate(new Date())
+  );
+  const [showNewStageDatePicker, setShowNewStageDatePicker] =
+    useState<boolean>(false);
+  const [newStageNotes, setNewStageNotes] = useState<string>("");
+  const [showStageSelectionModal, setShowStageSelectionModal] =
+    useState<boolean>(false);
 
+  // Application state
   const [currentApplication, setCurrentApplication] = useState<
     Application | undefined
   >(undefined);
+  const [availableStagesForSelection, setAvailableStagesForSelection] =
+    useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Animation values
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(50))[0];
+
+  const styles = getStyles(isDark);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   useEffect(() => {
     setAvailableStagesForSelection(getSuggestedStageNames(""));
@@ -72,12 +152,13 @@ const AddApplicationScreen = () => {
         setChannel(application.channel || CHANNELS[0]);
       } else {
         Alert.alert(
-          "Application not found",
-          "The application you tried to edit was not found"
+          "Application Not Found",
+          "The application you tried to edit was not found",
+          [{ text: "OK", onPress: () => router.replace("/add-application") }]
         );
-        router.replace("/add-application");
       }
     } else {
+      // Reset form for new application
       setCurrentApplication(undefined);
       setCompanyName("");
       setJobTitle("");
@@ -91,7 +172,7 @@ const AddApplicationScreen = () => {
 
   const handleApplicationDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || new Date();
-    setShowApplicationDatePicker(Platform.OS == "ios");
+    setShowApplicationDatePicker(Platform.OS === "ios");
     setApplicationDate(formatDate(currentDate));
   };
 
@@ -102,28 +183,49 @@ const AddApplicationScreen = () => {
   };
 
   const handleSaveJob = async () => {
-    if (!companyName || !jobTitle || !applicationDate || !channel) {
+    if (
+      !companyName.trim() ||
+      !jobTitle.trim() ||
+      !applicationDate ||
+      !channel
+    ) {
       Alert.alert(
-        "Missing Info",
-        "Company Name, Job Title, Channel and Application Date are required"
+        "Missing Information",
+        "Please fill in all required fields: Company Name, Job Title, Channel, and Application Date"
       );
       return;
     }
-    if (currentApplication) {
-      const updatedApplicationDetails: Application = {
-        ...currentApplication,
-        companyName,
-        jobTitle,
-        applicationDate,
-        channel,
-      };
-      await updateApplication(updatedApplicationDetails);
-      console.log("after await");
-      Alert.alert("Success", "Application Details updated");
-    } else {
-      await addApplication(companyName, jobTitle, applicationDate, channel);
-      Alert.alert("Success", "New Application added");
-      router.back();
+
+    setIsLoading(true);
+
+    try {
+      if (currentApplication) {
+        const updatedApplicationDetails: Application = {
+          ...currentApplication,
+          companyName: companyName.trim(),
+          jobTitle: jobTitle.trim(),
+          applicationDate,
+          channel,
+        };
+        await updateApplication(updatedApplicationDetails);
+        Alert.alert("Success", "Application updated successfully", [
+          { text: "OK", onPress: () => router.back() },
+        ]);
+      } else {
+        await addApplication(
+          companyName.trim(),
+          channel,
+          jobTitle.trim(),
+          applicationDate
+        );
+        Alert.alert("Success", "New application added successfully", [
+          { text: "OK", onPress: () => router.back() },
+        ]);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to save application. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -132,88 +234,370 @@ const AddApplicationScreen = () => {
       Alert.alert("Error", "Cannot add stage: Application not found");
       return;
     }
+
     if (!newStageName || !newStageDate) {
-      Alert.alert("Missing Info", "Stage Name and Date are required");
+      Alert.alert("Missing Information", "Stage Name and Date are required");
       return;
     }
 
-    await addStage(
-      currentApplication.id,
-      newStageName,
-      newStageDate,
-      newStageNotes
-    );
-    Alert.alert("Success", `Stage "${newStageName}" added`);
-    setNewStageName("");
-    setNewStageDate(formatDate(new Date()));
-    setNewStageNotes("");
+    setIsLoading(true);
+
+    try {
+      await addStage(
+        currentApplication.id,
+        newStageName,
+        newStageDate,
+        newStageNotes.trim()
+      );
+      Alert.alert("Success", `Stage "${newStageName}" added successfully`);
+      setNewStageName("");
+      setNewStageDate(formatDate(new Date()));
+      setNewStageNotes("");
+    } catch (error) {
+      Alert.alert("Error", "Failed to add stage. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.keyboardAvoidingContainer}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.backButtonText}>←</Text>
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>
+        {currentApplication ? "Edit Application" : "New Application"}
+      </Text>
+      <View style={styles.headerSpacer} />
+    </View>
+  );
+
+  const renderFormSection = () => (
+    <Animated.View
+      style={[
+        styles.section,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
     >
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.sectionTitle}> Application Details</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionIcon}>📝</Text>
+        <Text style={styles.sectionTitle}>Application Details</Text>
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.inputLabel}>Company Name *</Text>
         <TextInput
-          style={styles.input}
-          placeholder="Company Name"
+          style={styles.textInput}
+          placeholder="Enter company name"
+          placeholderTextColor={isDark ? "#8E8E93" : "#C7C7CC"}
           value={companyName}
           onChangeText={setCompanyName}
+          autoCapitalize="words"
         />
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.inputLabel}>Job Title *</Text>
         <TextInput
-          style={styles.input}
-          placeholder="Job Title"
+          style={styles.textInput}
+          placeholder="Enter job title"
+          placeholderTextColor={isDark ? "#8E8E93" : "#C7C7CC"}
           value={jobTitle}
           onChangeText={setJobTitle}
+          autoCapitalize="words"
         />
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Channel:</Text>
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.inputLabel}>Application Channel *</Text>
+        <TouchableOpacity
+          style={styles.selectButton}
+          onPress={() => setShowChannelModal(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.selectButtonContent}>
+            <Text style={styles.selectButtonIcon}>
+              {CHANNEL_ICONS[channel] || "📋"}
+            </Text>
+            <Text style={styles.selectButtonText}>
+              {channel || "Select Channel"}
+            </Text>
+          </View>
+          <Text style={styles.selectButtonArrow}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.inputLabel}>Application Date *</Text>
+        <TouchableOpacity
+          style={styles.selectButton}
+          onPress={() => setShowApplicationDatePicker(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.selectButtonContent}>
+            <Text style={styles.selectButtonIcon}>📅</Text>
+            <Text style={styles.selectButtonText}>
+              {formatDisplayDate(applicationDate)}
+            </Text>
+          </View>
+          <Text style={styles.selectButtonArrow}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={[
+          styles.primaryButton,
+          isLoading && styles.primaryButtonDisabled,
+        ]}
+        onPress={handleSaveJob}
+        disabled={isLoading}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.primaryButtonText}>
+          {isLoading
+            ? "Saving..."
+            : currentApplication
+            ? "Update Application"
+            : "Save Application"}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  const renderStageHistory = () => {
+    if (!currentApplication) return null;
+
+    return (
+      <Animated.View
+        style={[
+          styles.section,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionIcon}>📈</Text>
+          <Text style={styles.sectionTitle}>Application Timeline</Text>
+        </View>
+
+        {currentApplication.stages.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateIcon}>🎯</Text>
+            <Text style={styles.emptyStateText}>No stages recorded yet</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Add your first stage below to track progress
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.timeline}>
+            {currentApplication.stages.map((stage: Stage, index: number) => (
+              <View key={index} style={styles.timelineItem}>
+                <View style={styles.timelineMarker}>
+                  <Text style={styles.timelineIcon}>
+                    {STAGE_ICONS[stage.name] || "📍"}
+                  </Text>
+                </View>
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineTitle}>{stage.name}</Text>
+                  <Text style={styles.timelineDate}>
+                    {formatDisplayDate(stage.date)}
+                  </Text>
+                  {stage.notes && (
+                    <Text style={styles.timelineNotes}>{stage.notes}</Text>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+      </Animated.View>
+    );
+  };
+
+  const renderAddStageSection = () => {
+    if (!currentApplication) return null;
+
+    return (
+      <Animated.View
+        style={[
+          styles.section,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionIcon}>➕</Text>
+          <Text style={styles.sectionTitle}>Add New Stage</Text>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Stage Type *</Text>
           <TouchableOpacity
-            onPress={() => setShowChannelModal(true)}
-            style={styles.datePickerButton}
+            style={styles.selectButton}
+            onPress={() => setShowStageSelectionModal(true)}
+            activeOpacity={0.7}
           >
-            <Text>{channel || "Select Channel"}</Text>
+            <View style={styles.selectButtonContent}>
+              <Text style={styles.selectButtonIcon}>
+                {STAGE_ICONS[newStageName] || "📍"}
+              </Text>
+              <Text style={styles.selectButtonText}>
+                {newStageName || "Select Stage Type"}
+              </Text>
+            </View>
+            <Text style={styles.selectButtonArrow}>›</Text>
           </TouchableOpacity>
         </View>
 
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={showChannelModal}
-          onRequestClose={() => setShowChannelModal(false)}
-        >
-          <Pressable
-            style={styles.modalOverlay}
-            onPress={() => setShowChannelModal(false)}
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Stage Date *</Text>
+          <TouchableOpacity
+            style={styles.selectButton}
+            onPress={() => setShowNewStageDatePicker(true)}
+            activeOpacity={0.7}
           >
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select Channel</Text>
-              {CHANNELS.map((opt) => (
-                <TouchableOpacity
-                  key={opt}
-                  style={[
-                    styles.modalOption,
-                    channel === opt && styles.modalOptionSelected,
-                  ]}
-                  onPress={() => {
-                    setChannel(opt);
-                    setShowChannelModal(false);
-                  }}
-                >
-                  <Text style={styles.modalOptionText}>{opt}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.selectButtonContent}>
+              <Text style={styles.selectButtonIcon}>📅</Text>
+              <Text style={styles.selectButtonText}>
+                {formatDisplayDate(newStageDate)}
+              </Text>
             </View>
-          </Pressable>
-        </Modal>
+            <Text style={styles.selectButtonArrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Notes (Optional)</Text>
+          <TextInput
+            style={[styles.textInput, styles.textAreaInput]}
+            placeholder="Add any notes about this stage..."
+            placeholderTextColor={isDark ? "#8E8E93" : "#C7C7CC"}
+            value={newStageNotes}
+            onChangeText={setNewStageNotes}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+        </View>
+
         <TouchableOpacity
-          onPress={() => setShowApplicationDatePicker(true)}
-          style={styles.datePickerButton}
+          style={[
+            styles.secondaryButton,
+            isLoading && styles.secondaryButtonDisabled,
+          ]}
+          onPress={handleAddNewStage}
+          disabled={isLoading}
+          activeOpacity={0.8}
         >
-          <Text>Application Date: {applicationDate}</Text>
+          <Text style={styles.secondaryButtonText}>
+            {isLoading ? "Adding Stage..." : "Add Stage"}
+          </Text>
         </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  const renderModal = (
+    visible: boolean,
+    onClose: () => void,
+    title: string,
+    options: string[],
+    selectedValue: string,
+    onSelect: (value: string) => void,
+    iconMap?: Record<string, string>
+  ) => (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
+              <Text style={styles.modalCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={styles.modalOptions}
+            showsVerticalScrollIndicator={false}
+          >
+            {options.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.modalOption,
+                  selectedValue === option && styles.modalOptionSelected,
+                ]}
+                onPress={() => {
+                  onSelect(option);
+                  onClose();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalOptionIcon}>
+                  {iconMap?.[option] || "📋"}
+                </Text>
+                <Text
+                  style={[
+                    styles.modalOptionText,
+                    selectedValue === option && styles.modalOptionTextSelected,
+                  ]}
+                >
+                  {option}
+                </Text>
+                {selectedValue === option && (
+                  <Text style={styles.checkmark}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar
+          barStyle={isDark ? "light-content" : "dark-content"}
+          backgroundColor={styles.container.backgroundColor}
+        />
+
+        {renderHeader()}
+
+        <KeyboardAvoidingView
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {renderFormSection()}
+            {renderStageHistory()}
+            {renderAddStageSection()}
+          </ScrollView>
+        </KeyboardAvoidingView>
+
+        {/* Date Pickers */}
         {showApplicationDatePicker && (
           <DateTimePicker
             testID="applicationDatePicker"
@@ -224,236 +608,325 @@ const AddApplicationScreen = () => {
           />
         )}
 
-        <Button
-          title={
-            currentApplication
-              ? "Update Application Details"
-              : "Save New Application"
-          }
-          onPress={handleSaveJob}
-        />
-
-        {currentApplication && (
-          <>
-            <View style={styles.seperator} />
-            <Text style={styles.sectionTitle}> Application History</Text>
-            {currentApplication.stages.length === 0 ? (
-              <Text style={styles.noHistoryText}>
-                No stages recorded yet. Add one below!
-              </Text>
-            ) : (
-              <View>
-                {currentApplication.stages.map((stage, index) => (
-                  <View key={index} style={styles.stageItem}>
-                    <Text style={styles.stageName}>{stage.name}</Text>
-                    <Text style={styles.stageDate}>{stage.date}</Text>
-                    {stage.notes && (
-                      <Text style={styles.stageNotes}>{stage.notes}</Text>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
-            <View style={styles.seperator} />
-            <Text style={styles.sectionTitle}>Add new Stage</Text>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Stage Name:</Text>
-              <TouchableOpacity
-                onPress={() => setShowStageSelectionModal(true)}
-                style={styles.datePickerButton}
-              >
-                <Text>{newStageName || "Select Stage"}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Modal
-              animationType="slide"
-              transparent={true}
-              visible={showStageSelectionModal}
-              onRequestClose={() => setShowStageSelectionModal(false)}
-            >
-              <Pressable
-                style={styles.modalOverlay}
-                onPress={() => setShowStageSelectionModal(false)}
-              >
-                <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>Select Stage</Text>
-                  <ScrollView style={styles.modalOptionsScrollView}>
-                    {availableStagesForSelection.map((stageName) => (
-                      <TouchableOpacity
-                        key={stageName}
-                        style={[
-                          styles.modalOption,
-                          newStageName === stageName &&
-                            styles.modalOptionSelected,
-                        ]}
-                        onPress={() => {
-                          setNewStageName(stageName);
-                          setShowStageSelectionModal(false);
-                        }}
-                      >
-                        <Text style={styles.modalOptionText}>{stageName}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              </Pressable>
-            </Modal>
-            <TouchableOpacity
-              onPress={() => setShowNewStageDatePicker(true)}
-              style={styles.datePickerButton}
-            >
-              <Text>Stage Date: {newStageDate}</Text>
-            </TouchableOpacity>
-            {showNewStageDatePicker && (
-              <DateTimePicker
-                testID="newStageDatePicker"
-                value={new Date(newStageDate)}
-                mode="date"
-                display="default"
-                onChange={handleNewStageDateChange}
-              />
-            )}
-            <TextInput
-              style={styles.input}
-              placeholder="Notes (optional)"
-              value={newStageNotes}
-              onChangeText={setNewStageNotes}
-              multiline
-              numberOfLines={3}
-            />
-            <Button
-              title="Add Stage to Application"
-              onPress={handleAddNewStage}
-            />
-          </>
+        {showNewStageDatePicker && (
+          <DateTimePicker
+            testID="newStageDatePicker"
+            value={new Date(newStageDate)}
+            mode="date"
+            display="default"
+            onChange={handleNewStageDateChange}
+          />
         )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        {/* Modals */}
+        {renderModal(
+          showChannelModal,
+          () => setShowChannelModal(false),
+          "Select Application Channel",
+          CHANNELS,
+          channel,
+          setChannel,
+          CHANNEL_ICONS
+        )}
+
+        {renderModal(
+          showStageSelectionModal,
+          () => setShowStageSelectionModal(false),
+          "Select Stage Type",
+          availableStagesForSelection,
+          newStageName,
+          setNewStageName,
+          STAGE_ICONS
+        )}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 };
 
-const styles = StyleSheet.create({
-  keyboardAvoidingContainer: {
-    flex: 1,
-  },
-  container: {
-    padding: 20,
-    paddingBottom: 50,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 5,
-    backgroundColor: "#fff",
-  },
-  datePickerButton: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 5,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-    minHeight: 40,
-  },
-  seperator: {
-    height: 1,
-    backgroundColor: "#eee",
-    marginVertical: 20,
-  },
-  stageItem: {
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: "#007bff",
-  },
-  stageName: {
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  stageDate: { fontSize: 12, color: "#666", marginTop: 2 },
-  stageNotes: {
-    fontSize: 14,
-    color: "#333",
-    marginTop: 5,
-    fontStyle: "italic",
-  },
-  suggestionsContainer: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 5,
-    marginBottom: 10,
-    maxHeight: 150,
-    overflow: "hidden",
-  },
-  suggestionItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    backgroundColor: "#fefefe",
-  },
-  noHistoryText: {
-    textAlign: "center",
-    color: "#666",
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  inputGroup: {
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 5,
-    color: "#555",
-    fontWeight: "500",
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 20,
-    width: "80%",
-    maxHeight: "70%",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 15,
-    textAlign: "center",
-  },
-  modalOption: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  modalOptionSelected: {
-    backgroundColor: "#e6f0ff",
-    borderRadius: 5,
-  },
-  modalOptionText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  modalOptionsScrollView: { 
-    flexGrow: 1, 
-    maxHeight: '80%',
-  },
-});
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: isDark ? "#000000" : "#F2F2F7",
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: isDark ? "#38383A" : "#C6C6C8",
+    },
+    backButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: isDark ? "#2C2C2E" : "#F2F2F7",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    backButtonText: {
+      fontSize: 18,
+      color: isDark ? "#007AFF" : "#007AFF",
+      fontWeight: "600",
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#000000",
+    },
+    headerSpacer: {
+      width: 32,
+    },
+    keyboardContainer: {
+      flex: 1,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: 20,
+      paddingBottom: 40,
+    },
+    section: {
+      backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 20,
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: isDark ? 0.3 : 0.1,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 20,
+      gap: 12,
+    },
+    sectionIcon: {
+      fontSize: 24,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: isDark ? "#FFFFFF" : "#000000",
+    },
+    inputContainer: {
+      marginBottom: 20,
+    },
+    inputLabel: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#000000",
+      marginBottom: 8,
+    },
+    textInput: {
+      backgroundColor: isDark ? "#2C2C2E" : "#F2F2F7",
+      borderRadius: 12,
+      padding: 16,
+      fontSize: 16,
+      color: isDark ? "#FFFFFF" : "#000000",
+      borderWidth: 1,
+      borderColor: isDark ? "#38383A" : "#E5E5EA",
+    },
+    textAreaInput: {
+      height: 80,
+      textAlignVertical: "top",
+    },
+    selectButton: {
+      backgroundColor: isDark ? "#2C2C2E" : "#F2F2F7",
+      borderRadius: 12,
+      padding: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderWidth: 1,
+      borderColor: isDark ? "#38383A" : "#E5E5EA",
+    },
+    selectButtonContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    selectButtonIcon: {
+      fontSize: 20,
+    },
+    selectButtonText: {
+      fontSize: 16,
+      color: isDark ? "#FFFFFF" : "#000000",
+    },
+    selectButtonArrow: {
+      fontSize: 18,
+      color: isDark ? "#8E8E93" : "#C7C7CC",
+      fontWeight: "600",
+    },
+    primaryButton: {
+      backgroundColor: "#007AFF",
+      borderRadius: 12,
+      padding: 16,
+      alignItems: "center",
+      marginTop: 8,
+    },
+    primaryButtonDisabled: {
+      opacity: 0.6,
+    },
+    primaryButtonText: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: "#FFFFFF",
+    },
+    secondaryButton: {
+      backgroundColor: isDark ? "#2C2C2E" : "#F2F2F7",
+      borderRadius: 12,
+      padding: 16,
+      alignItems: "center",
+      marginTop: 8,
+      borderWidth: 1,
+      borderColor: isDark ? "#007AFF" : "#007AFF",
+    },
+    secondaryButtonDisabled: {
+      opacity: 0.6,
+    },
+    secondaryButtonText: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: "#007AFF",
+    },
+    emptyState: {
+      alignItems: "center",
+      paddingVertical: 40,
+    },
+    emptyStateIcon: {
+      fontSize: 48,
+      marginBottom: 16,
+      opacity: 0.6,
+    },
+    emptyStateText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#000000",
+      marginBottom: 8,
+    },
+    emptyStateSubtext: {
+      fontSize: 16,
+      color: isDark ? "#8E8E93" : "#6D6D70",
+      textAlign: "center",
+    },
+    timeline: {
+      gap: 16,
+    },
+    timelineItem: {
+      flexDirection: "row",
+      gap: 16,
+    },
+    timelineMarker: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? "#2C2C2E" : "#F2F2F7",
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 2,
+      borderColor: "#007AFF",
+    },
+    timelineIcon: {
+      fontSize: 16,
+    },
+    timelineContent: {
+      flex: 1,
+      paddingTop: 2,
+    },
+    timelineTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#000000",
+      marginBottom: 4,
+    },
+    timelineDate: {
+      fontSize: 14,
+      color: isDark ? "#8E8E93" : "#6D6D70",
+      marginBottom: 8,
+    },
+    timelineNotes: {
+      fontSize: 14,
+      color: isDark ? "#FFFFFF" : "#000000",
+      lineHeight: 20,
+      fontStyle: "italic",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 20,
+    },
+    modalContent: {
+      backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
+      borderRadius: 20,
+      width: "100%",
+      maxWidth: 400,
+      maxHeight: "70%",
+      overflow: "hidden",
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 20,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: isDark ? "#38383A" : "#C6C6C8",
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: isDark ? "#FFFFFF" : "#000000",
+    },
+    modalCloseButton: {
+      padding: 4,
+    },
+    modalCloseText: {
+      fontSize: 16,
+      color: isDark ? "#8E8E93" : "#6D6D70",
+    },
+    modalOptions: {
+      paddingVertical: 8,
+    },
+    modalOption: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      gap: 16,
+    },
+    modalOptionSelected: {
+      backgroundColor: isDark ? "#007AFF20" : "#007AFF10",
+    },
+    modalOptionIcon: {
+      fontSize: 20,
+      width: 24,
+      textAlign: "center",
+    },
+    modalOptionText: {
+      fontSize: 16,
+      color: isDark ? "#FFFFFF" : "#000000",
+      flex: 1,
+    },
+    modalOptionTextSelected: {
+      color: "#007AFF",
+      fontWeight: "600",
+    },
+    checkmark: {
+      fontSize: 16,
+      color: "#007AFF",
+      fontWeight: "bold",
+    },
+  });
 
 export default AddApplicationScreen;
