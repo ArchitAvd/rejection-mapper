@@ -12,20 +12,44 @@ import WebView from "react-native-webview";
 
 const { width, height } = Dimensions.get("window");
 
+const CHANNEL_COLORS: { [key: string]: string } = {
+  LinkedIn: "rgba(0, 119, 181, 0.6)",
+  "Company Website": "rgba(220, 220, 220, 0.8)",
+  Referral: "rgba(52, 168, 83, 0.6)",
+  "Job Board": "rgba(251, 188, 5, 0.6)",
+  Networking: "rgba(234, 67, 53, 0.6)",
+  Other: "rgba(150, 150, 150, 0.6)",
+  Unknown: "rgba(100, 100, 100, 0.3)",
+};
+
+type SankeyNode = { label: string; rawLabel: string; count: number };
+type SankeyLink = {
+  source: number;
+  target: number;
+  value: number;
+  channel: string;
+};
+
 const transformDataForSankey = (
   applications: Application[]
 ): {
-  nodes: { label: string; rawLabel: string; count: number }[]; 
-  links: { source: number; target: number; value: number }[];
+  nodes: SankeyNode[];
+  links: SankeyLink[];
 } => {
-  const uniqueStageNames = new Set<string>(); 
-  const linkCounts = new Map<string, number>();
+  const uniqueStageNames = new Set<string>();
+  const channelLinkCounts = new Map<string, Map<string, number>>();
   const stageApplicationCounts = new Map<string, number>();
 
-  applications.forEach(job => {
+  applications.forEach((job) => {
     const sortedStages = [...job.stages].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
+
+    const jobChannel = job.channel || "Unknown";
+    if (!channelLinkCounts.has(jobChannel)) {
+      channelLinkCounts.set(jobChannel, new Map<string, number>());
+    }
+    const currentChannelLinks = channelLinkCounts.get(jobChannel)!;
 
     const stagesInThisApplication = new Set<string>();
 
@@ -37,16 +61,22 @@ const transformDataForSankey = (
       if (i < sortedStages.length - 1) {
         const nextStageName = sortedStages[i + 1].name;
         const linkKey = `${currentStageName}->${nextStageName}`;
-        linkCounts.set(linkKey, (linkCounts.get(linkKey) || 0) + 1);
+        currentChannelLinks.set(
+          linkKey,
+          (currentChannelLinks.get(linkKey) || 0) + 1
+        );
       }
     }
 
-    stagesInThisApplication.forEach(stageName => {
-        stageApplicationCounts.set(stageName, (stageApplicationCounts.get(stageName) || 0) + 1);
+    stagesInThisApplication.forEach((stageName) => {
+      stageApplicationCounts.set(
+        stageName,
+        (stageApplicationCounts.get(stageName) || 0) + 1
+      );
     });
   });
 
-  const nodes: { label: string; rawLabel: string; count: number }[] = [];
+  const nodes: SankeyNode[] = [];
   const nodeMap = new Map<string, number>();
   const sortedUniqueStageNames = Array.from(uniqueStageNames).sort();
 
@@ -55,24 +85,27 @@ const transformDataForSankey = (
     nodeMap.set(stageName, nodes.length);
     nodes.push({
       label: `${stageName}: ${count}`,
-      rawLabel: stageName, 
+      rawLabel: stageName,
       count: count,
     });
   });
 
-  const links: { source: number; target: number; value: number }[] = [];
-  linkCounts.forEach((count, linkKey) => {
-    const [sourceName, targetName] = linkKey.split('->');
-    const sourceIndex = nodeMap.get(sourceName);
-    const targetIndex = nodeMap.get(targetName);
+  const links: SankeyLink[] = [];
+  channelLinkCounts.forEach((linkMapForChannel, channelName) => {
+    linkMapForChannel.forEach((count, linkKey) => {
+      const [sourceName, targetName] = linkKey.split("->");
+      const sourceIndex = nodeMap.get(sourceName);
+      const targetIndex = nodeMap.get(targetName);
 
-    if (sourceIndex !== undefined && targetIndex !== undefined) {
-      links.push({
-        source: sourceIndex,
-        target: targetIndex,
-        value: count,
-      });
-    }
+      if (sourceIndex !== undefined && targetIndex !== undefined) {
+        links.push({
+          source: sourceIndex,
+          target: targetIndex,
+          value: count,
+          channel: channelName,
+        });
+      }
+    });
   });
 
   return { nodes, links };
@@ -93,6 +126,9 @@ const SankeyDiagramScreen = () => {
     }
 
     const { nodes, links } = sankeyData;
+    const linkColors = links.map((link) => {
+      return CHANNEL_COLORS[link.channel] || "rgba(100, 100, 100, 0.2)";
+    });
 
     const plotlyConfig = {
       data: [
@@ -113,12 +149,12 @@ const SankeyDiagramScreen = () => {
             source: links.map((link) => link.source),
             target: links.map((link) => link.target),
             value: links.map((link) => link.value),
-            color: "rgba(0,0,0,0.2)",
+            color: linkColors,
           },
         },
       ],
       layout: {
-        title: "Application Flow",
+        title: "Application Flow By Channel",
         font: {
           size: 10,
         },
