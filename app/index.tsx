@@ -11,15 +11,14 @@ import {
   Pressable,
   useColorScheme,
   StatusBar,
-  Dimensions,
   Animated,
   GestureResponderEvent,
 } from "react-native";
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useApplications } from "../context/ApplicationContext";
-import { Application, Stage } from "../types";
-
-const { width } = Dimensions.get("window");
+import { Application } from "../types";
+import { FontAwesome, MaterialCommunityIcons } from "@expo/vector-icons";
+import ListFooter from "./components/ListFooter";
 
 const FILTER_OPTIONS = [
   { label: "All", value: "All", icon: "📋" },
@@ -39,12 +38,7 @@ const SORT_OPTIONS = [
 ];
 
 const getStatusColor = (
-  status:
-    | "Applied"
-    | "Rounds"
-    | "Offer Received"
-    | "Rejected"
-    | "Ghosted",
+  status: "Applied" | "Rounds" | "Offer Received" | "Rejected" | "Ghosted",
   isDark: boolean
 ) => {
   const colors = {
@@ -116,13 +110,6 @@ export default function HomeScreen() {
         if (!lastStageName) return selectedFilter === "Applied";
 
         switch (selectedFilter) {
-          case "Active":
-            return !(
-              lastStageName === "Rejected" ||
-              lastStageName === "Ghosted" ||
-              lastStageName === "Offer Accepted" ||
-              lastStageName === "Offer Declined"
-            );
           case "Rejected":
           case "Offer Received":
           case "Ghosted":
@@ -185,16 +172,9 @@ export default function HomeScreen() {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  const renderJobItem = ({
-    item,
-    index,
-  }: {
-    item: Application;
-    index: number;
-  }) => {
+  const renderJobItem = ({ item }: { item: Application; index: number }) => {
     const status = getStatusFromStages(item.stages);
     const statusColor = getStatusColor(status, isDark);
-    // console.log(item.applicationDate);
     return (
       <Animated.View style={[styles.jobItem, { opacity: 1 }]}>
         <TouchableOpacity
@@ -287,7 +267,7 @@ export default function HomeScreen() {
           onPress={() => setShowFilterModal(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.controlIcon}>🔍</Text>
+          <FontAwesome name="search" style={styles.controlIcon} />
           <Text style={styles.controlText}>
             {FILTER_OPTIONS.find((opt) => opt.value === selectedFilter)
               ?.label || "Filter"}
@@ -299,7 +279,7 @@ export default function HomeScreen() {
           onPress={() => setShowSortModal(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.controlIcon}>↕️</Text>
+          <MaterialCommunityIcons name="sort" style={styles.controlIcon} />
           <Text style={styles.controlText}>
             {SORT_OPTIONS.find(
               (opt) => opt.value === selectedSort
@@ -477,6 +457,7 @@ export default function HomeScreen() {
           renderItem={renderJobItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListFooterComponent={ListFooter}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyIcon}>📝</Text>
@@ -575,6 +556,7 @@ const getStyles = (isDark: boolean) =>
     },
     controlIcon: {
       fontSize: 16,
+      color: isDark ? "white" : "black",
     },
     controlText: {
       fontSize: 16,
@@ -593,16 +575,16 @@ const getStyles = (isDark: boolean) =>
     },
     listContent: {
       padding: 16,
-      paddingBottom: 100,
+      paddingBottom: 120,
     },
     jobItem: {
       marginBottom: 12,
     },
     jobContent: {
       backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
-      borderRadius: 16,
+      borderRadius: 20,
       padding: 16,
-      shadowColor: "#000",
+      shadowColor: isDark ? "#fff" : "#000",
       shadowOffset: {
         width: 0,
         height: 2,
