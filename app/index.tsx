@@ -17,25 +17,14 @@ import {
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useApplications } from "../context/ApplicationContext";
 import { Application } from "../types";
-import { FontAwesome, MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  FontAwesome,
+  MaterialCommunityIcons,
+  FontAwesome5,
+  FontAwesome6,
+  Entypo,
+} from "@expo/vector-icons";
 import ListFooter from "./components/ListFooter";
-
-const FILTER_OPTIONS = [
-  { label: "All", value: "All", icon: "📋" },
-  { label: "Applied", value: "Applied", icon: "📤" },
-  { label: "Rounds", value: "Interview", icon: "💼" },
-  { label: "Ghosted", value: "Ghosted", icon: "💀" },
-  { label: "Rejected", value: "Rejected", icon: "❌" },
-  { label: "Offer Received", value: "Offer Received", icon: "🎉" },
-];
-
-const SORT_OPTIONS = [
-  { label: "Date Added (Newest)", value: "applicationDateDesc", icon: "📅" },
-  { label: "Date Added (Oldest)", value: "applicationDateAsc", icon: "📅" },
-  { label: "Last Updated (Newest)", value: "lastStageDateDesc", icon: "🔄" },
-  { label: "Company Name (A-Z)", value: "companyAsc", icon: "🏢" },
-  { label: "Job Title (A-Z)", value: "jobTitleAsc", icon: "💼" },
-];
 
 const getStatusColor = (
   status: "Applied" | "Rounds" | "Offer Received" | "Rejected" | "Ghosted",
@@ -66,6 +55,92 @@ export default function HomeScreen() {
   const [searchVisible, setSearchVisible] = useState(false);
 
   const styles = getStyles(isDark);
+
+  const FILTER_OPTIONS = [
+    {
+      label: "All",
+      value: "All",
+      icon: (
+        <MaterialCommunityIcons
+          name="view-list"
+          style={styles.modalOptionIcon}
+        />
+      ),
+    },
+    {
+      label: "Applied",
+      value: "Applied",
+      icon: (
+        <FontAwesome5
+          name="envelope-open-text"
+          style={styles.modalOptionIcon}
+        />
+      ),
+    },
+    {
+      label: "Rounds",
+      value: "Interview",
+      icon: <FontAwesome5 name="briefcase" style={styles.modalOptionIcon} />,
+    },
+    {
+      label: "Ghosted",
+      value: "Ghosted",
+      icon: <FontAwesome6 name="skull" style={styles.modalOptionIcon} />,
+    },
+    {
+      label: "Rejected",
+      value: "Rejected",
+      icon: <Entypo name="circle-with-cross" style={styles.modalOptionIcon} />,
+    },
+    {
+      label: "Offer Received",
+      value: "Offer Received",
+      icon: (
+        <MaterialCommunityIcons
+          name="party-popper"
+          style={styles.modalOptionIcon}
+        />
+      ),
+    },
+  ];
+
+  const SORT_OPTIONS = [
+    {
+      label: "Date Added (Newest)",
+      value: "applicationDateDesc",
+      icon: <FontAwesome name="calendar" style={styles.modalOptionIcon} />,
+    },
+    {
+      label: "Date Added (Oldest)",
+      value: "applicationDateAsc",
+      icon: <FontAwesome name="calendar" style={styles.modalOptionIcon} />,
+    },
+    {
+      label: "Last Updated (Newest)",
+      value: "lastStageDateDesc",
+      icon: (
+        <MaterialCommunityIcons
+          name="sort-calendar-descending"
+          style={styles.modalOptionIcon}
+        />
+      ),
+    },
+    {
+      label: "Company Name (A-Z)",
+      value: "companyAsc",
+      icon: <FontAwesome5 name="building" style={styles.modalOptionIcon} />,
+    },
+    {
+      label: "Job Title (A-Z)",
+      value: "jobTitleAsc",
+      icon: (
+        <MaterialCommunityIcons
+          name="sort-alphabetical-ascending"
+          style={styles.modalOptionIcon}
+        />
+      ),
+    },
+  ];
 
   useFocusEffect(
     useCallback(() => {
@@ -411,7 +486,7 @@ export default function HomeScreen() {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.modalOptionIcon}>{option.icon}</Text>
+                  {option.icon}
                   <Text
                     style={[
                       styles.modalOptionText,
@@ -793,8 +868,7 @@ const getStyles = (isDark: boolean) =>
     },
     modalOptionIcon: {
       fontSize: 20,
-      width: 24,
-      textAlign: "center",
+      color: isDark ? "white" : "black",
     },
     modalOptionText: {
       fontSize: 17,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { JSX, useCallback, useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useApplications } from "../context/ApplicationContext";
 import { Application, Stage, PREDEFINED_STAGES, CHANNELS } from "../types";
@@ -20,6 +20,17 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import {
+  FontAwesome,
+  MaterialCommunityIcons,
+  FontAwesome5,
+  FontAwesome6,
+  Entypo,
+  Fontisto,
+  Foundation,
+  MaterialIcons,
+  AntDesign,
+} from "@expo/vector-icons";
 
 interface AddApplicationScreenProps {}
 
@@ -35,38 +46,6 @@ const formatDisplayDate = (dateString: string): string => {
     month: "short",
     day: "numeric",
   });
-};
-
-type IconConfig = {
-  lib: React.ComponentType<any>;
-  name: string;
-  color?: string;
-};
-
-const CHANNEL_ICONS: Record<string, string> = {
-  LinkedIn: "💼",
-  "Company Website": "🌐",
-  Indeed: "🔍",
-  Glassdoor: "🏢",
-  Referral: "👥",
-  "Job Fair": "🎪",
-  Recruiter: "📞",
-  Other: "📋",
-};
-
-const STAGE_ICONS: Record<string, string> = {
-  Applied: "📤",
-  "Application Reviewed": "👀",
-  "Phone Screen": "📞",
-  "Technical Interview": "💻",
-  "Behavioral Interview": "💭",
-  "Final Interview": "🎯",
-  "Offer Received": "🎉",
-  "Offer Accepted": "✅",
-  "Offer Declined": "❌",
-  Rejected: "⛔",
-  Ghosted: "👻",
-  Withdrawn: "🚪",
 };
 
 const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
@@ -121,6 +100,44 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
   const slideAnim = useState(new Animated.Value(50))[0];
 
   const styles = getStyles(isDark);
+
+  const CHANNEL_ICONS: Record<string, JSX.Element> = {
+    LinkedIn: <FontAwesome6 name="linkedin" style={styles.modalOptionIcon} />,
+    "Company Website": (
+      <MaterialCommunityIcons name="web" style={styles.modalOptionIcon} />
+    ),
+    Glassdoor: <Fontisto name="webpack" style={styles.modalOptionIcon} />,
+    Referral: <Fontisto name="webpack" style={styles.modalOptionIcon} />,
+    Other: <Fontisto name="webpack" style={styles.modalOptionIcon} />,
+  };
+
+  const STAGE_ICONS: Record<string, JSX.Element> = {
+    Applied: (
+      <FontAwesome5 name="envelope-open-text" style={styles.modalOptionIcon} />
+    ),
+    Rounds: <FontAwesome5 name="briefcase" style={styles.modalOptionIcon} />,
+    Ghosted: <FontAwesome6 name="skull" style={styles.modalOptionIcon} />,
+    Rejected: (
+      <Entypo name="circle-with-cross" style={styles.modalOptionIcon} />
+    ),
+    Offer: <Foundation name="page-pdf" style={styles.modalOptionIcon} />,
+    Withdrew: <AntDesign name="back" style={styles.modalOptionIcon} />,
+    Accepted: (
+      <MaterialCommunityIcons
+        name="party-popper"
+        style={styles.modalOptionIcon}
+      />
+    ),
+    Declined: (
+      <Entypo name="circle-with-cross" style={styles.modalOptionIcon} />
+    ),
+    Finished: (
+      <MaterialCommunityIcons
+        name="timer-sand-complete"
+        style={styles.modalOptionIcon}
+      />
+    ),
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -287,7 +304,10 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
       ]}
     >
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionIcon}>📝</Text>
+        <MaterialCommunityIcons
+          name="account-details"
+          style={styles.sectionIcon}
+        />
         <Text style={styles.sectionTitle}>Application Details</Text>
       </View>
 
@@ -342,7 +362,7 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
           activeOpacity={0.7}
         >
           <View style={styles.selectButtonContent}>
-            <Text style={styles.selectButtonIcon}>📅</Text>
+            <FontAwesome5 name="calendar-alt" style={styles.selectButtonIcon} />
             <Text style={styles.selectButtonText}>
               {formatDisplayDate(applicationDate)}
             </Text>
@@ -385,13 +405,13 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
         ]}
       >
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionIcon}>📈</Text>
+          <FontAwesome6 name="chart-line" style={styles.sectionIcon} />
           <Text style={styles.sectionTitle}>Application Timeline</Text>
         </View>
 
         {currentApplication.stages.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateIcon}>🎯</Text>
+            <Foundation name="target" style={styles.emptyStateIcon} />
             <Text style={styles.emptyStateText}>No stages recorded yet</Text>
             <Text style={styles.emptyStateSubtext}>
               Add your first stage below to track progress
@@ -403,7 +423,12 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
               <View key={index} style={styles.timelineItem}>
                 <View style={styles.timelineMarker}>
                   <Text style={styles.timelineIcon}>
-                    {STAGE_ICONS[stage.name] || "📍"}
+                    {STAGE_ICONS[stage.name] || (
+                      <MaterialIcons
+                        name="timeline"
+                        style={styles.timelineIcon}
+                      />
+                    )}
                   </Text>
                 </View>
                 <View style={styles.timelineContent}>
@@ -437,7 +462,7 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
         ]}
       >
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionIcon}>➕</Text>
+          <FontAwesome name="plus" style={styles.sectionIcon} />
           <Text style={styles.sectionTitle}>Add New Stage</Text>
         </View>
 
@@ -450,7 +475,9 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
           >
             <View style={styles.selectButtonContent}>
               <Text style={styles.selectButtonIcon}>
-                {STAGE_ICONS[newStageName] || "📍"}
+                {STAGE_ICONS[newStageName] || (
+                  <MaterialIcons name="timeline" style={styles.timelineIcon} />
+                )}
               </Text>
               <Text style={styles.selectButtonText}>
                 {newStageName || "Select Stage Type"}
@@ -468,7 +495,10 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
             activeOpacity={0.7}
           >
             <View style={styles.selectButtonContent}>
-              <Text style={styles.selectButtonIcon}>📅</Text>
+              <FontAwesome5
+                name="calendar-alt"
+                style={styles.selectButtonIcon}
+              />
               <Text style={styles.selectButtonText}>
                 {formatDisplayDate(newStageDate)}
               </Text>
@@ -515,7 +545,7 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
     options: string[],
     selectedValue: string,
     onSelect: (value: string) => void,
-    iconMap?: Record<string, string>
+    iconMap?: Record<string, JSX.Element>
   ) => (
     <Modal
       animationType="fade"
@@ -549,9 +579,13 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={styles.modalOptionIcon}>
-                  {iconMap?.[option] || "📋"}
-                </Text>
+                {iconMap?.[option] || (
+                  <FontAwesome5
+                    name="briefcase"
+                    size={20}
+                    color={isDark ? "white" : "black"}
+                  />
+                )}
                 <Text
                   style={[
                     styles.modalOptionText,
@@ -618,7 +652,6 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
           />
         )}
 
-        {/* Modals */}
         {renderModal(
           showChannelModal,
           () => setShowChannelModal(false),
@@ -668,7 +701,8 @@ const getStyles = (isDark: boolean) =>
       alignItems: "center",
     },
     backButtonText: {
-      fontSize: 18,
+      fontSize: 28,
+      marginTop: -8,
       color: isDark ? "#007AFF" : "#007AFF",
       fontWeight: "600",
     },
@@ -712,6 +746,7 @@ const getStyles = (isDark: boolean) =>
     },
     sectionIcon: {
       fontSize: 24,
+      color: isDark ? "white" : "black",
     },
     sectionTitle: {
       fontSize: 20,
@@ -757,6 +792,7 @@ const getStyles = (isDark: boolean) =>
     },
     selectButtonIcon: {
       fontSize: 20,
+      color: isDark ? "white" : "black",
     },
     selectButtonText: {
       fontSize: 16,
@@ -807,6 +843,7 @@ const getStyles = (isDark: boolean) =>
       fontSize: 48,
       marginBottom: 16,
       opacity: 0.6,
+      color: isDark ? "white" : "black",
     },
     emptyStateText: {
       fontSize: 18,
@@ -910,8 +947,7 @@ const getStyles = (isDark: boolean) =>
     },
     modalOptionIcon: {
       fontSize: 20,
-      width: 24,
-      textAlign: "center",
+      color: isDark ? "white" : "black",
     },
     modalOptionText: {
       fontSize: 16,
