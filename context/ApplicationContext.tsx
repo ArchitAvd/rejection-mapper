@@ -40,7 +40,7 @@ interface ApplicationContextType {
   ) => Promise<void>;
   deleteApplication: (id: string) => Promise<void>;
   getApplicationById: (id: string) => Application | undefined;
-  getSuggestedStageNames: (currentInput: string) => string[];
+  getSuggestedStageNames: () => string[];
   forceRefresh: () => void;
 }
 
@@ -165,46 +165,9 @@ export const ApplicationProvider = ({ children }: ApplicationProviderProps) => {
     [applications]
   );
 
-  const getSuggestedStageNames = useCallback(
-    (currentInput: string): string[] => {
-      const uniqueExistingStages = Array.from(
-        new Set(
-          applications.flatMap((application) =>
-            application.stages.map((stage) => stage.name)
-          )
-        )
-      );
-
-      const allPossibleStages = Array.from(
-        new Set([...PREDEFINED_STAGES, ...uniqueExistingStages])
-      );
-
-      if (!currentInput) {
-        return allPossibleStages;
-      }
-
-      const lowerCaseInput = currentInput.toLowerCase();
-      return allPossibleStages
-        .filter((stage) => stage.toLowerCase().includes(lowerCaseInput))
-        .sort((a, b) => {
-          if (a.toLowerCase() === lowerCaseInput) return -1;
-          if (b.toLowerCase() === lowerCaseInput) return 1;
-          if (
-            a.toLowerCase().startsWith(lowerCaseInput) &&
-            !b.toLowerCase().startsWith(lowerCaseInput)
-          )
-            return -1;
-          if (
-            b.toLowerCase().startsWith(lowerCaseInput) &&
-            !a.toLowerCase().startsWith(lowerCaseInput)
-          )
-            return 1;
-          return a.localeCompare(b);
-        })
-        .slice(0, 5);
-    },
-    [applications]
-  );
+  const getSuggestedStageNames = useCallback((): string[] => {
+    return Array.from(new Set([...PREDEFINED_STAGES]));
+  }, [applications]);
 
   const contextValue = {
     applications,

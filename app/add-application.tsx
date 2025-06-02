@@ -155,7 +155,7 @@ const AddApplicationScreen: React.FC<AddApplicationScreenProps> = () => {
   }, []);
 
   useEffect(() => {
-    setAvailableStagesForSelection(getSuggestedStageNames(""));
+    setAvailableStagesForSelection(getSuggestedStageNames());
   }, [getSuggestedStageNames, applications]);
 
   useEffect(() => {
