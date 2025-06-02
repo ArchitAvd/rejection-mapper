@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -13,6 +19,7 @@ import {
   StatusBar,
   Animated,
   GestureResponderEvent,
+  TextInput,
 } from "react-native";
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useApplications } from "../context/ApplicationContext";
@@ -53,6 +60,8 @@ export default function HomeScreen() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const styles = getStyles(isDark);
 
@@ -145,6 +154,10 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       forceRefresh();
+      setSearchQuery("");
+      setIsSearchActive(false);
+      setSelectedFilter("All");
+      setSelectedSort("applicationDateDesc");
     }, [forceRefresh])
   );
 
@@ -178,6 +191,16 @@ export default function HomeScreen() {
 
   const filteredAndSortedApplications = useMemo(() => {
     let filtered = [...applications];
+
+    if (searchQuery) {
+      const lowerCaseQuery = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (job) =>
+          job.companyName.toLowerCase().includes(lowerCaseQuery) ||
+          job.jobTitle.toLowerCase().includes(lowerCaseQuery) ||
+          job.channel.toLowerCase().includes(lowerCaseQuery)
+      );
+    }
 
     if (selectedFilter !== "All") {
       filtered = filtered.filter((job) => {
@@ -278,12 +301,7 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: statusColor + "20" },
-              ]}
-            >
+            <View style={styles.statusBadge}>
               <Text style={[styles.statusText, { color: statusColor }]}>
                 {status}
               </Text>
@@ -325,18 +343,43 @@ export default function HomeScreen() {
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
+    <Animated.View style={styles.header}>
       <View style={styles.headerTop}>
         <View>
-          <Text style={styles.headerTitle}>Job Applications</Text>
-          <Text style={styles.headerSubtitle}>
+          <Animated.Text style={styles.headerTitle}>
+            Job Applications
+          </Animated.Text>
+          <Animated.Text style={styles.headerSubtitle}>
             {filteredAndSortedApplications.length} application
             {filteredAndSortedApplications.length !== 1 ? "s" : ""}
-          </Text>
+          </Animated.Text>
         </View>
       </View>
 
+      {isSearchActive && (
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search company, job title, or channel..."
+          placeholderTextColor={isDark ? "#8E8E93" : "#6D6D70"}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      )}
+
       <View style={styles.controlsContainer}>
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => setIsSearchActive(!isSearchActive)}
+          activeOpacity={0.7}
+        >
+          <FontAwesome name="search" style={styles.controlIcon} />
+          <Text style={styles.controlText}>
+            {isSearchActive ? "Hide Search" : "Search"}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.controlButton}
           onPress={() => setShowFilterModal(true)}
@@ -362,7 +405,7 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
   );
 
   const renderModal = (
@@ -532,7 +575,7 @@ export default function HomeScreen() {
           renderItem={renderJobItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          ListFooterComponent={ListFooter}
+          ListFooterComponent={<ListFooter />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyIcon}>📝</Text>
@@ -883,5 +926,14 @@ const getStyles = (isDark: boolean) =>
       fontSize: 16,
       color: "#007AFF",
       fontWeight: "bold",
+    },
+    searchBar: {
+      backgroundColor: isDark ? "#2C2C2E" : "#E5E5EA",
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 17,
+      color: isDark ? "#FFFFFF" : "#000000",
+      marginBottom: 15,
     },
   });
