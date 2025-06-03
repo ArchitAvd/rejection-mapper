@@ -385,7 +385,7 @@ export default function HomeScreen() {
           onPress={() => setShowFilterModal(true)}
           activeOpacity={0.7}
         >
-          <FontAwesome name="search" style={styles.controlIcon} />
+          <FontAwesome name="filter" style={styles.controlIcon} />
           <Text style={styles.controlText}>
             {FILTER_OPTIONS.find((opt) => opt.value === selectedFilter)
               ?.label || "Filter"}
